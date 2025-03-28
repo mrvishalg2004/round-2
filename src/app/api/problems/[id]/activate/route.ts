@@ -2,15 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/utils/db';
 import Problem from '@/models/Problem';
 
-interface Context {
-  params: {
-    id: string;
-  };
-}
-
 export async function PUT(
   req: NextRequest,
-  context: Context
+  { params }: { params: { id: string } }
 ) {
   try {
     await dbConnect();
@@ -20,7 +14,7 @@ export async function PUT(
     
     // Set the specified problem to active
     const problem = await Problem.findByIdAndUpdate(
-      context.params.id,
+      params.id,
       { active: true },
       { new: true }
     );

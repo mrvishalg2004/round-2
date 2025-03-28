@@ -2,20 +2,16 @@ import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/utils/db';
 import Problem from '@/models/Problem';
 
-// Define correct param type following Next.js documentation
-interface RequestContext {
-  params: {
-    id: string;
-  };
-}
-
-export async function PUT(request: NextRequest, context: RequestContext): Promise<NextResponse> {
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+): Promise<NextResponse> {
   try {
     await dbConnect();
     
     // Set the problem to inactive
     const problem = await Problem.findByIdAndUpdate(
-      context.params.id,
+      params.id,
       { active: false },
       { new: true }
     );
