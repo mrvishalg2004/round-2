@@ -1,20 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { initSocket, NextApiResponseWithSocket } from '@/utils/socket';
+import { initSocket } from '@/utils/socket';
 
-export async function GET(req: NextRequest, res: NextApiResponseWithSocket) {
+// This endpoint is disabled in App Router mode as Socket.IO needs to be set up differently
+export async function GET(req: NextRequest) {
   try {
-    // Initialize Socket.IO
-    const io = initSocket(res);
-    
-    return new NextResponse(JSON.stringify({ success: true }), {
+    return new NextResponse(JSON.stringify({ 
+      message: 'Socket.IO in App Router requires a different setup. Use server actions or a custom server for Socket.IO integration.'
+    }), {
       status: 200,
       headers: {
         'content-type': 'application/json',
       },
     });
   } catch (error) {
-    console.error('Socket initialization error:', error);
-    return new NextResponse(JSON.stringify({ error: 'Failed to initialize socket' }), {
+    console.error('Socket error:', error);
+    return new NextResponse(JSON.stringify({ error: 'Failed to process socket request' }), {
       status: 500,
       headers: {
         'content-type': 'application/json',

@@ -13,6 +13,14 @@ function shuffleArray(array: any[]) {
   return newArray;
 }
 
+// Define interface for problem assignments
+interface ProblemAssignment {
+  teamName: string;
+  problemTitle: string;
+  problemId: string;
+  difficulty?: string;
+}
+
 // POST endpoint to assign problems to teams
 export async function POST(req: NextRequest) {
   try {
@@ -52,7 +60,7 @@ export async function POST(req: NextRequest) {
     const shuffledProblems = shuffleArray(problems);
     
     // Assign problems to teams (round-robin if more teams than problems)
-    const assignments = [];
+    const assignments: ProblemAssignment[] = [];
     for (let i = 0; i < teams.length; i++) {
       const team = teams[i];
       const problemIndex = i % shuffledProblems.length;
@@ -110,7 +118,7 @@ export async function GET(req: NextRequest) {
       }
     });
     
-    const assignments = Array.from(teamMap.values());
+    const assignments: ProblemAssignment[] = Array.from(teamMap.values());
     
     return NextResponse.json({
       success: true,

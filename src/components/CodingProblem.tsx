@@ -19,7 +19,7 @@ interface CodingProblemProps {
 const CodingProblem: React.FC<CodingProblemProps> = ({ problem, onSubmissionComplete, teamName }) => {
   const [answer, setAnswer] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState<string | null>('');
   const [showForm, setShowForm] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {

@@ -329,7 +329,7 @@ export default function Home() {
       <div className="min-h-screen bg-gray-50 flex flex-col">
         <Header />
         <div className="container mx-auto px-4 py-8">
-          <GameOver timeExpired={endTime && new Date(endTime) <= new Date()} />
+          <GameOver timeExpired={endTime ? new Date(endTime) <= new Date() : false} />
         </div>
       </div>
     );

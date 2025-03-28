@@ -1271,7 +1271,7 @@ export default function AdminPage() {
                         Edit
                       </button>
                       <button
-                        onClick={() => handleDeleteProblem(problem._id)}
+                        onClick={() => deleteProblem(problem._id)}
                         className="px-3 py-1.5 text-xs font-bold rounded-md shadow-sm text-white bg-gray-600 hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-gray-500"
                       >
                         Delete

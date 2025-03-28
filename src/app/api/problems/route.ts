@@ -19,9 +19,16 @@ export async function GET(req: NextRequest) {
     }
     
     // Extract teamName from query or cookies
-    const teamName = req.nextUrl.searchParams.get('teamName') || 
-                    cookies().get('teamName')?.value || 
-                    '';
+    let teamName = req.nextUrl.searchParams.get('teamName') || '';
+    
+    // If not in query params, try to get from cookies
+    if (!teamName) {
+      const cookieStore = await cookies();
+      const teamNameCookie = cookieStore.get('teamName');
+      if (teamNameCookie) {
+        teamName = teamNameCookie.value;
+      }
+    }
                     
     let problem;
     
