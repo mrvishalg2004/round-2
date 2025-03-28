@@ -4,14 +4,15 @@ import Problem from '@/models/Problem';
 
 export async function PUT(
   request: NextRequest,
-  context: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ): Promise<NextResponse> {
   try {
     await dbConnect();
     
     // Set the problem to inactive
+    const { id } = await params;
     const problem = await Problem.findByIdAndUpdate(
-      context.params.id,
+      id,
       { active: false },
       { new: true }
     );

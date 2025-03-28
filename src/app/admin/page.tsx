@@ -250,6 +250,37 @@ export default function AdminPage() {
     }
   };
 
+  // Function to toggle problem active status
+  const toggleProblemActive = async (problemId: string) => {
+    try {
+      setMessage(null);
+      setError(null);
+      
+      // Find the problem to determine current active status
+      const problem = problems.find(p => p._id === problemId);
+      if (!problem) {
+        setError('Problem not found');
+        return;
+      }
+      
+      // Determine which endpoint to call based on current status
+      const endpoint = problem.active 
+        ? `/api/problems/${problemId}/deactivate`
+        : `/api/problems/${problemId}/activate`;
+      
+      const response = await axios.put(endpoint);
+      
+      if (response.status === 200) {
+        setMessage(`Problem ${problem.active ? 'deactivated' : 'activated'} successfully`);
+        // Refresh problem list
+        fetchProblems();
+      }
+    } catch (err: any) {
+      console.error('Error toggling problem status:', err);
+      setError(err.response?.data?.error || 'Failed to update problem status');
+    }
+  };
+
   const resetCompetition = async () => {
     if (!confirm('Are you sure you want to reset the competition? This will remove all users and their submissions.')) return;
     

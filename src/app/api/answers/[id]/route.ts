@@ -2,20 +2,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/utils/db';
 import Answer from '@/models/Answer';
 
-interface RouteParams {
-  params: {
-    id: string;
-  };
-}
-
 export async function GET(
   req: NextRequest,
-  { params }: RouteParams
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await dbConnect();
     
-    const answer = await Answer.findById(params.id)
+    const { id } = await params;
+    const answer = await Answer.findById(id)
       .populate('problem')
       .populate('team');
       
@@ -38,14 +33,15 @@ export async function GET(
 
 export async function PUT(
   req: NextRequest,
-  { params }: RouteParams
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await dbConnect();
     
     const { status } = await req.json();
     
-    const answer = await Answer.findById(params.id);
+    const { id } = await params;
+    const answer = await Answer.findById(id);
     
     if (!answer) {
       return NextResponse.json(
