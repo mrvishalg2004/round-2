@@ -3,32 +3,26 @@ import dbConnect from '@/utils/db';
 import User from '@/models/User';
 import Problem from '@/models/Problem';
 import Submission from '@/models/Submission';
+import GameState from '@/models/GameState';
 import { emitGameComplete, getIO } from '@/utils/socket';
-import path from 'path';
-import fs from 'fs';
 
 const MAX_QUALIFIED_USERS = 10;
-const GAME_STATE_FILE = path.join(process.cwd(), 'game-state.json');
 
 // Helper function to read the game state
-const isGameActive = () => {
+const isGameActive = async () => {
   try {
-    if (!fs.existsSync(GAME_STATE_FILE)) {
-      return false;
-    }
-    
-    const data = fs.readFileSync(GAME_STATE_FILE, 'utf8');
-    const gameState = JSON.parse(data);
+    await dbConnect();
+    const gameState = await GameState.findOne({ isDefault: true });
     return gameState?.active === true;
   } catch (error) {
-    console.error('Error reading game state:', error);
+    console.error('Error checking game state:', error);
     return false;
   }
 };
 
 export async function POST(req: NextRequest) {
   try {
-    if (!isGameActive()) {
+    if (!await isGameActive()) {
       return NextResponse.json(
         { error: 'Game is not active' },
         { status: 400 }

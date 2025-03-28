@@ -1,67 +1,53 @@
 import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/utils/db';
-import fs from 'fs';
-import path from 'path';
+import GameState from '@/models/GameState';
 
-// Path to the game state file
-const GAME_STATE_FILE = path.join(process.cwd(), 'game-state.json');
+// Define default game duration
 const DEFAULT_GAME_DURATION = 10 * 60 * 1000; // 10 minutes in milliseconds
 
-// Define GameState interface
-interface GameState {
-  active: boolean;
-  startTime: string | null;
-  endTime: string | null;
-  duration: number;
-  isPaused?: boolean;
-  pausedTimeRemaining?: number;
-}
-
-// Default game state
-const DEFAULT_GAME_STATE: GameState = {
-  active: false,
-  startTime: null,
-  endTime: null,
-  duration: DEFAULT_GAME_DURATION,
-  isPaused: false,
-  pausedTimeRemaining: 0
-};
-
-// Helper function to read the game state
-const readGameState = (): GameState => {
+// Helper function to get the game state from MongoDB
+const getGameState = async () => {
   try {
-    if (!fs.existsSync(GAME_STATE_FILE)) {
-      fs.writeFileSync(GAME_STATE_FILE, JSON.stringify(DEFAULT_GAME_STATE, null, 2), 'utf8');
-      return DEFAULT_GAME_STATE;
+    await dbConnect();
+    // Get the default game state or create if it doesn't exist
+    let gameState = await GameState.findOne({ isDefault: true });
+    
+    if (!gameState) {
+      // Create default game state if none exists
+      gameState = await GameState.create({
+        active: false,
+        startTime: null,
+        endTime: null,
+        duration: DEFAULT_GAME_DURATION,
+        isPaused: false,
+        pausedTimeRemaining: 0,
+        isDefault: true
+      });
     }
     
-    const data = fs.readFileSync(GAME_STATE_FILE, 'utf8');
-    return JSON.parse(data) as GameState;
+    return gameState;
   } catch (error) {
-    console.error('Error reading game state:', error);
-    return DEFAULT_GAME_STATE;
-  }
-};
-
-// Helper function to update the game state
-const updateGameState = (state: GameState): GameState | null => {
-  try {
-    fs.writeFileSync(GAME_STATE_FILE, JSON.stringify(state, null, 2), 'utf8');
-    return state;
-  } catch (error) {
-    console.error('Error updating game state:', error);
-    return null;
+    console.error('Error getting game state:', error);
+    throw error;
   }
 };
 
 // GET /api/game-state
 export async function GET(req: NextRequest): Promise<NextResponse> {
   try {
-    await dbConnect();
+    const gameState = await getGameState();
     
-    const gameState = readGameState();
+    // Format dates as ISO strings for JSON serialization
+    const formattedState = {
+      active: gameState.active,
+      startTime: gameState.startTime ? gameState.startTime.toISOString() : null,
+      endTime: gameState.endTime ? gameState.endTime.toISOString() : null,
+      duration: gameState.duration,
+      isPaused: gameState.isPaused,
+      pausedTimeRemaining: gameState.pausedTimeRemaining
+    };
     
-    return NextResponse.json(gameState);
+    return NextResponse.json(formattedState);
   } catch (error) {
     console.error('Error fetching game state:', error);
     return NextResponse.json(
@@ -74,56 +60,53 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 // PUT /api/game-state
 export async function PUT(req: NextRequest): Promise<NextResponse> {
   try {
-    await dbConnect();
-    
     const body = await req.json();
     console.log('Received game state update:', body);
     
-    // Read existing state
-    let gameState = readGameState();
+    // Get current game state
+    let gameState = await getGameState();
     console.log('Current game state:', gameState);
-    
-    // Update state with values from request
-    const newState = {
-      ...gameState,
-      ...body
-    };
     
     // If activating the game, set start time
     if (body.active === true && !gameState.active) {
       const now = new Date();
-      newState.startTime = now.toISOString();
+      gameState.startTime = now;
       
       // Don't automatically set end time when activating game
       // Only set it if explicitly provided in the request
       if (!body.hasOwnProperty('endTime')) {
-        newState.endTime = null;
+        gameState.endTime = null;
       }
       
       // Reset pause state when activating
-      newState.isPaused = false;
-      newState.pausedTimeRemaining = 0;
+      gameState.isPaused = false;
+      gameState.pausedTimeRemaining = 0;
+    }
+    
+    // Update active state if provided
+    if (body.hasOwnProperty('active')) {
+      gameState.active = body.active;
     }
     
     // Handle pause state changes
     if (body.hasOwnProperty('isPaused')) {
-      newState.isPaused = body.isPaused;
+      gameState.isPaused = body.isPaused;
       
       // If pausing, capture the remaining time
       if (body.isPaused && body.hasOwnProperty('pausedTimeRemaining')) {
-        newState.pausedTimeRemaining = body.pausedTimeRemaining;
+        gameState.pausedTimeRemaining = body.pausedTimeRemaining;
       }
       
       // If resuming, set pausedTimeRemaining to 0
       if (body.isPaused === false) {
-        newState.pausedTimeRemaining = 0;
+        gameState.pausedTimeRemaining = 0;
       }
     }
     
     // If explicitly setting endTime
     if (body.hasOwnProperty('endTime')) {
       if (body.endTime === null) {
-        newState.endTime = null;
+        gameState.endTime = null;
       } else {
         try {
           // Ensure endTime is a valid date
@@ -131,7 +114,7 @@ export async function PUT(req: NextRequest): Promise<NextResponse> {
           if (isNaN(endTimeDate.getTime())) {
             throw new Error('Invalid date format for endTime');
           }
-          newState.endTime = endTimeDate.toISOString();
+          gameState.endTime = endTimeDate;
         } catch (error) {
           console.error('Error parsing endTime:', error, body.endTime);
           return NextResponse.json(
@@ -143,26 +126,33 @@ export async function PUT(req: NextRequest): Promise<NextResponse> {
     }
     
     // If explicitly updating duration
-    if (body.duration) {
+    if (body.hasOwnProperty('duration')) {
+      gameState.duration = body.duration;
+      
       // If game is active, recalculate end time only if we have an active timer
-      if (newState.active && newState.startTime && newState.endTime && !newState.isPaused) {
-        const startTime = new Date(newState.startTime);
-        const endTime = new Date(startTime.getTime() + body.duration);
-        newState.endTime = endTime.toISOString();
+      if (gameState.active && gameState.startTime && gameState.endTime && !gameState.isPaused) {
+        const startTime = new Date(gameState.startTime);
+        const endTime = new Date(startTime.getTime() + gameState.duration);
+        gameState.endTime = endTime;
       }
     }
     
-    console.log('Updated game state:', newState);
-    const updatedState = updateGameState(newState);
+    console.log('Updated game state:', gameState);
     
-    if (!updatedState) {
-      return NextResponse.json(
-        { error: 'Failed to update game state' },
-        { status: 500 }
-      );
-    }
+    // Save changes to database
+    await gameState.save();
     
-    return NextResponse.json(updatedState);
+    // Format dates as ISO strings for JSON serialization
+    const formattedState = {
+      active: gameState.active,
+      startTime: gameState.startTime ? gameState.startTime.toISOString() : null,
+      endTime: gameState.endTime ? gameState.endTime.toISOString() : null,
+      duration: gameState.duration,
+      isPaused: gameState.isPaused,
+      pausedTimeRemaining: gameState.pausedTimeRemaining
+    };
+    
+    return NextResponse.json(formattedState);
   } catch (error) {
     console.error('Error updating game state:', error);
     return NextResponse.json(
