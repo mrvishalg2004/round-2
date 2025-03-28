@@ -25,6 +25,164 @@ export default function Home() {
   const [endTime, setEndTime] = useState<Date | null>(null);
   const [isPaused, setIsPaused] = useState(false);
   const [pausedTimeRemaining, setPausedTimeRemaining] = useState<number | undefined>(undefined);
+  const [tabSwitchCount, setTabSwitchCount] = useState(0);
+  const [isFullScreen, setIsFullScreen] = useState(false);
+
+  // Function to enter fullscreen mode
+  const enterFullScreen = () => {
+    const element = document.documentElement;
+    if (element.requestFullscreen) {
+      element.requestFullscreen();
+      setIsFullScreen(true);
+    } else if ((element as any).mozRequestFullScreen) {
+      (element as any).mozRequestFullScreen();
+      setIsFullScreen(true);
+    } else if ((element as any).webkitRequestFullscreen) {
+      (element as any).webkitRequestFullscreen();
+      setIsFullScreen(true);
+    } else if ((element as any).msRequestFullscreen) {
+      (element as any).msRequestFullscreen();
+      setIsFullScreen(true);
+    }
+  };
+
+  // Function to exit fullscreen mode
+  const exitFullScreen = () => {
+    if (document.exitFullscreen) {
+      document.exitFullscreen();
+      setIsFullScreen(false);
+    } else if ((document as any).mozCancelFullScreen) {
+      (document as any).mozCancelFullScreen();
+      setIsFullScreen(false);
+    } else if ((document as any).webkitExitFullscreen) {
+      (document as any).webkitExitFullscreen();
+      setIsFullScreen(false);
+    } else if ((document as any).msExitFullscreen) {
+      (document as any).msExitFullscreen();
+      setIsFullScreen(false);
+    }
+  };
+
+  // Automatically enter fullscreen mode on game start
+  useEffect(() => {
+    if (enrolled && isGameActive) {
+      const timer = setTimeout(() => {
+        enterFullScreen();
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [enrolled, isGameActive]);
+
+  // Track tab switching
+  useEffect(() => {
+    if (enrolled && isGameActive) {
+      const handleVisibilityChange = () => {
+        if (document.hidden) {
+          setTabSwitchCount(prevCount => {
+            const newCount = prevCount + 1;
+            console.log('Tab switch detected:', newCount);
+            
+            // If switched more than twice, block the team
+            if (newCount >= 2) {
+              blockTeam();
+            }
+            
+            return newCount;
+          });
+        }
+      };
+
+      // Function to block the team
+      const blockTeam = async () => {
+        try {
+          const savedTeamName = localStorage.getItem('teamName');
+          if (savedTeamName) {
+            setIsBlocked(true);
+            alert('You have switched tabs too many times. Your team is blocked from the competition.');
+            // Notify server about the violation
+            await axios.post('/api/admin/teams/block-by-name', {
+              teamName: savedTeamName,
+              reason: 'Tab switching violation'
+            });
+            localStorage.removeItem('teamName');
+            localStorage.removeItem('email');
+            window.location.reload();
+          }
+        } catch (err) {
+          console.error('Error blocking team:', err);
+        }
+      };
+
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+      return () => {
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
+      };
+    }
+  }, [enrolled, isGameActive]);
+
+  // Track fullscreen exit
+  useEffect(() => {
+    if (enrolled && isGameActive) {
+      const handleFullScreenChange = () => {
+        const isCurrentlyFullScreen = !!(
+          document.fullscreenElement ||
+          (document as any).webkitFullscreenElement ||
+          (document as any).mozFullScreenElement ||
+          (document as any).msFullscreenElement
+        );
+        
+        setIsFullScreen(isCurrentlyFullScreen);
+        
+        // If exited fullscreen, count it as a tab switch
+        if (!isCurrentlyFullScreen && isFullScreen) {
+          setTabSwitchCount(prevCount => {
+            const newCount = prevCount + 1;
+            console.log('Fullscreen exit detected, counting as tab switch:', newCount);
+            
+            // If switched more than twice (including fullscreen exits), block the team
+            if (newCount >= 2) {
+              blockTeam();
+            }
+            
+            return newCount;
+          });
+        }
+      };
+
+      // Function to block the team 
+      const blockTeam = async () => {
+        try {
+          const savedTeamName = localStorage.getItem('teamName');
+          if (savedTeamName) {
+            setIsBlocked(true);
+            alert('You have exited fullscreen mode. Your team is blocked from the competition.');
+            // Notify server about the violation
+            await axios.post('/api/admin/teams/block-by-name', {
+              teamName: savedTeamName,
+              reason: 'Fullscreen exit violation'
+            });
+            localStorage.removeItem('teamName');
+            localStorage.removeItem('email');
+            window.location.reload();
+          }
+        } catch (err) {
+          console.error('Error blocking team:', err);
+        }
+      };
+
+      document.addEventListener('fullscreenchange', handleFullScreenChange);
+      document.addEventListener('webkitfullscreenchange', handleFullScreenChange);
+      document.addEventListener('mozfullscreenchange', handleFullScreenChange);
+      document.addEventListener('MSFullscreenChange', handleFullScreenChange);
+      
+      return () => {
+        document.removeEventListener('fullscreenchange', handleFullScreenChange);
+        document.removeEventListener('webkitfullscreenchange', handleFullScreenChange);
+        document.removeEventListener('mozfullscreenchange', handleFullScreenChange);
+        document.removeEventListener('MSFullscreenChange', handleFullScreenChange);
+      };
+    }
+  }, [enrolled, isGameActive, isFullScreen]);
 
   // Initialize Socket.IO connection and fetch initial data
   useEffect(() => {
@@ -289,7 +447,9 @@ export default function Home() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex flex-col">
-        <Header />
+        <Header 
+          isGameActive={isGameActive}
+        />
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
@@ -303,7 +463,9 @@ export default function Home() {
   if (error) {
     return (
       <div className="min-h-screen bg-gray-50 flex flex-col">
-        <Header />
+        <Header 
+          isGameActive={isGameActive}
+        />
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center max-w-md px-4">
             <svg className="h-16 w-16 text-red-500 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -327,7 +489,12 @@ export default function Home() {
   if (isGameOver) {
     return (
       <div className="min-h-screen bg-gray-50 flex flex-col">
-        <Header />
+        <Header 
+          isGameActive={isGameActive}
+          teamName={teamName}
+          tabSwitchCount={tabSwitchCount}
+          isFullScreen={isFullScreen}
+        />
         <div className="container mx-auto px-4 py-8">
           <GameOver timeExpired={endTime ? new Date(endTime) <= new Date() : false} />
         </div>
@@ -339,7 +506,9 @@ export default function Home() {
   if (!enrolled) {
     return (
       <div className="min-h-screen bg-gray-50 flex flex-col">
-        <Header />
+        <Header 
+          isGameActive={isGameActive}
+        />
         <div className="container mx-auto px-4 py-8">
           <EnrollmentForm onEnroll={handleEnrollment} />
         </div>
@@ -351,7 +520,10 @@ export default function Home() {
   if (isBlocked) {
     return (
       <div className="min-h-screen bg-gray-50 flex flex-col">
-        <Header />
+        <Header 
+          isGameActive={isGameActive}
+          teamName={teamName}
+        />
         <div className="container mx-auto px-4 py-8">
           <div className="bg-white p-8 rounded-lg shadow-lg max-w-2xl mx-auto text-center">
             <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
@@ -373,7 +545,10 @@ export default function Home() {
   if (!isGameActive) {
     return (
       <div className="min-h-screen bg-gray-50 flex flex-col">
-        <Header />
+        <Header 
+          isGameActive={isGameActive}
+          teamName={teamName}
+        />
         <div className="container mx-auto px-4 py-8">
           <div className="bg-white p-6 rounded-lg shadow-lg max-w-2xl mx-auto text-center">
             <div className="mb-6">
@@ -396,7 +571,12 @@ export default function Home() {
   
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      <Header />
+      <Header 
+        isGameActive={isGameActive}
+        teamName={teamName}
+        tabSwitchCount={tabSwitchCount}
+        isFullScreen={isFullScreen}
+      />
       {isGameActive && endTime && !isGameOver && (
         <div className="absolute top-0 left-0 w-full flex justify-center mt-4 z-10">
           <CountdownTimer 
