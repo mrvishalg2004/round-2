@@ -2,13 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/utils/db';
 import Problem from '@/models/Problem';
 
-type Props = {
-  params: {
-    id: string;
-  };
-};
-
-export async function PUT(req: NextRequest, props: Props) {
+export async function PUT(
+  req: NextRequest,
+  { params }: { params: { id: string } }
+) {
   try {
     await dbConnect();
     
@@ -17,7 +14,7 @@ export async function PUT(req: NextRequest, props: Props) {
     
     // Set the specified problem to active
     const problem = await Problem.findByIdAndUpdate(
-      props.params.id,
+      params.id,
       { active: true },
       { new: true }
     );

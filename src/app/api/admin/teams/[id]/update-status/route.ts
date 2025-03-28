@@ -2,13 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/utils/db';
 import User from '@/models/User';
 
-type Props = {
-  params: {
-    id: string;
-  };
-};
-
-export async function POST(req: NextRequest, props: Props) {
+export async function POST(
+  req: NextRequest,
+  { params }: { params: { id: string } }
+) {
   try {
     await dbConnect();
     
@@ -17,7 +14,7 @@ export async function POST(req: NextRequest, props: Props) {
     const { win, lose, qualified } = body;
     
     // Find the user by ID
-    const user = await User.findById(props.params.id);
+    const user = await User.findById(params.id);
     if (!user) {
       return NextResponse.json(
         { error: 'Team not found' },
