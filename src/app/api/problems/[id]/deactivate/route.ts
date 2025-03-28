@@ -12,7 +12,7 @@ interface RouteParams {
 // Use proper type signature matching Next.js API Route definition
 export async function PUT(
   request: NextRequest,
-  { params }: RouteParams
+  { params }: { params: { id: string } }
 ): Promise<NextResponse> {
   try {
     await dbConnect();
