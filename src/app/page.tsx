@@ -30,19 +30,60 @@ export default function Home() {
 
   // Function to enter fullscreen mode
   const enterFullScreen = () => {
-    const element = document.documentElement;
-    if (element.requestFullscreen) {
-      element.requestFullscreen();
-      setIsFullScreen(true);
-    } else if ((element as any).mozRequestFullScreen) {
-      (element as any).mozRequestFullScreen();
-      setIsFullScreen(true);
-    } else if ((element as any).webkitRequestFullscreen) {
-      (element as any).webkitRequestFullscreen();
-      setIsFullScreen(true);
-    } else if ((element as any).msRequestFullscreen) {
-      (element as any).msRequestFullscreen();
-      setIsFullScreen(true);
+    try {
+      const element = document.documentElement;
+      
+      // Log attempt to enter fullscreen
+      console.log('Attempting to enter fullscreen mode...');
+      
+      // Different methods for different browsers
+      const requestMethod = 
+        element.requestFullscreen || 
+        (element as any).mozRequestFullScreen || 
+        (element as any).webkitRequestFullscreen || 
+        (element as any).msRequestFullscreen;
+      
+      if (requestMethod) {
+        // Create a Promise wrapper around the fullscreen request
+        const requestPromise = (requestMethod === element.requestFullscreen) 
+          ? requestMethod.call(element) 
+          : (requestMethod as Function).call(element);
+        
+        // Handle Promise-based APIs (modern browsers)
+        if (requestPromise && typeof requestPromise.then === 'function') {
+          requestPromise
+            .then(() => {
+              console.log('Fullscreen request succeeded');
+              setIsFullScreen(true);
+              // Force recheck of fullscreen state after a short delay
+              setTimeout(() => {
+                const isCurrentlyFullScreen = !!(
+                  document.fullscreenElement ||
+                  (document as any).webkitFullscreenElement ||
+                  (document as any).mozFullScreenElement ||
+                  (document as any).msFullscreenElement
+                );
+                setIsFullScreen(isCurrentlyFullScreen);
+              }, 500);
+            })
+            .catch((err: any) => {
+              console.error('Error entering fullscreen:', err);
+              // Show a user-friendly message if fullscreen is denied
+              if (err.name === 'NotAllowedError') {
+                alert('Fullscreen denied. Please allow fullscreen to continue with the game. The game requires fullscreen mode.');
+              }
+            });
+        } else {
+          console.log('Fullscreen requested (non-Promise API)');
+          // For older browsers that don't return a promise
+          setIsFullScreen(true);
+        }
+      } else {
+        console.error('Fullscreen API not supported in this browser');
+        alert('Your browser does not support fullscreen mode. Please try a different browser to play the game.');
+      }
+    } catch (err) {
+      console.error('Error attempting to enter fullscreen:', err);
     }
   };
 
@@ -184,6 +225,75 @@ export default function Home() {
     }
   }, [enrolled, isGameActive, isFullScreen]);
 
+  // Special effect focused only on entering fullscreen when game activates
+  useEffect(() => {
+    // Only run when game is active and user is enrolled
+    if (isGameActive && enrolled) {
+      console.log('Game active state detected, preparing fullscreen request...');
+      
+      // Create a user gesture listener to enable fullscreen
+      const handleUserGesture = () => {
+        // Only enter fullscreen if not already in fullscreen
+        if (!isFullScreen) {
+          console.log('User gesture detected, attempting fullscreen...');
+          enterFullScreen();
+        }
+        
+        // Remove the event listeners once we've attempted fullscreen
+        window.removeEventListener('click', handleUserGesture);
+        window.removeEventListener('keydown', handleUserGesture);
+        window.removeEventListener('touchstart', handleUserGesture);
+      };
+      
+      // Add multiple attempts to enter fullscreen with small delays between
+      const attemptFullscreen = (attemptsLeft: number) => {
+        if (attemptsLeft <= 0 || isFullScreen) return;
+        
+        console.log(`Fullscreen attempt ${4 - attemptsLeft + 1}/4...`);
+        enterFullScreen();
+        
+        // Schedule next attempt
+        setTimeout(() => attemptFullscreen(attemptsLeft - 1), 1000);
+      };
+      
+      // Try immediately with a short delay
+      setTimeout(() => {
+        console.log('Initial fullscreen attempt...');
+        enterFullScreen();
+        
+        // Attach user gesture listeners to enable fullscreen on first interaction
+        window.addEventListener('click', handleUserGesture);
+        window.addEventListener('keydown', handleUserGesture);
+        window.addEventListener('touchstart', handleUserGesture);
+        
+        // Schedule multiple attempts with delays
+        setTimeout(() => attemptFullscreen(3), 1500);
+      }, 500);
+      
+      // Check fullscreen state periodically
+      const fullscreenCheckInterval = setInterval(() => {
+        const currentlyInFullscreen = !!(
+          document.fullscreenElement ||
+          (document as any).webkitFullscreenElement ||
+          (document as any).mozFullScreenElement ||
+          (document as any).msFullscreenElement
+        );
+        
+        if (currentlyInFullscreen !== isFullScreen) {
+          console.log(`Fullscreen state sync: API says ${currentlyInFullscreen}, state says ${isFullScreen}`);
+          setIsFullScreen(currentlyInFullscreen);
+        }
+      }, 2000);
+      
+      return () => {
+        clearInterval(fullscreenCheckInterval);
+        window.removeEventListener('click', handleUserGesture);
+        window.removeEventListener('keydown', handleUserGesture);
+        window.removeEventListener('touchstart', handleUserGesture);
+      };
+    }
+  }, [isGameActive, enrolled, isFullScreen]);
+
   // Initialize Socket.IO connection and fetch initial data
   useEffect(() => {
     // Initialize Socket connection
@@ -214,6 +324,9 @@ export default function Home() {
         socketIo.on('gameStatusChange', (data) => {
           console.log('Received gameStatusChange event:', data);
           
+          // Check if game is becoming active (changing from inactive to active)
+          const wasInactive = !isGameActive;
+          
           // Update game active state
           setIsGameActive(data.active);
           
@@ -238,6 +351,15 @@ export default function Home() {
             setPausedTimeRemaining(data.pausedTimeRemaining);
           } else {
             setPausedTimeRemaining(undefined);
+          }
+          
+          // If game became active (was inactive before), request fullscreen immediately
+          if (wasInactive && data.active && enrolled) {
+            console.log('Game became active, requesting fullscreen mode...');
+            // Slight delay to ensure UI has updated
+            setTimeout(() => {
+              enterFullScreen();
+            }, 500);
           }
         });
 
@@ -308,7 +430,9 @@ export default function Home() {
     const fetchGameState = async () => {
       try {
         const response = await axios.get('/api/game-state');
-        setIsGameActive(response.data.active);
+        const gameActive = response.data.active;
+        
+        setIsGameActive(gameActive);
         
         // Set pause state
         setIsPaused(response.data.isPaused || false);
@@ -325,6 +449,15 @@ export default function Home() {
           setEndTime(new Date(response.data.endTime));
         } else {
           setEndTime(null);
+        }
+        
+        // If game is active and user is enrolled, request fullscreen
+        if (gameActive && localStorage.getItem('teamName')) {
+          console.log('Game is active on initial load, requesting fullscreen mode...');
+          // Small delay to ensure UI has updated
+          setTimeout(() => {
+            enterFullScreen();
+          }, 1000);
         }
       } catch (err) {
         console.error('Error fetching game state:', err);
@@ -588,14 +721,43 @@ export default function Home() {
         </div>
       )}
       
+      {isGameActive && !isFullScreen && (
+        <div className="fixed top-16 left-0 right-0 bg-red-500 text-white text-center py-2 z-20 animate-pulse shadow-lg">
+          <p className="font-bold">⚠️ WARNING: Fullscreen mode is required! ⚠️</p>
+          <button 
+            onClick={enterFullScreen}
+            className="mt-1 px-4 py-1 bg-white text-red-600 rounded-md font-bold hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-white"
+          >
+            Enter Fullscreen Mode Now
+          </button>
+          <p className="text-xs mt-1">You risk being disqualified if you continue without fullscreen mode</p>
+        </div>
+      )}
+      
       <main className="flex-1 container mx-auto px-4 py-8">
         <div className="max-w-4xl mx-auto">
           {problem ? (
-            <CodingProblem 
-              problem={problem} 
-              onSubmissionComplete={handleSubmissionComplete}
-              teamName={teamName}
-            />
+            <>
+              <CodingProblem 
+                problem={problem} 
+                onSubmissionComplete={handleSubmissionComplete}
+                teamName={teamName}
+              />
+              
+              {isGameActive && !isFullScreen && (
+                <div className="mt-6 p-4 bg-red-50 border-2 border-red-300 rounded-lg text-center">
+                  <button 
+                    onClick={enterFullScreen}
+                    className="px-6 py-3 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors font-bold"
+                  >
+                    Enter Fullscreen Mode
+                  </button>
+                  <p className="mt-2 text-red-700 text-sm">
+                    For fair competition, fullscreen mode is required. You may be disqualified if you don't use fullscreen mode.
+                  </p>
+                </div>
+              )}
+            </>
           ) : (
             <div className="bg-white p-6 rounded-lg shadow-lg text-center">
               <p className="text-gray-600">No active coding problem found.</p>
