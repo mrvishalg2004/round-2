@@ -4,7 +4,7 @@ import Problem from '@/models/Problem';
 
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
 ) {
   try {
     await dbConnect();
@@ -14,7 +14,7 @@ export async function PUT(
     
     // Set the specified problem to active
     const problem = await Problem.findByIdAndUpdate(
-      params.id,
+      context.params.id,
       { active: true },
       { new: true }
     );

@@ -4,12 +4,12 @@ import Problem from '@/models/Problem';
 
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
 ) {
   try {
     await dbConnect();
     
-    const problem = await Problem.findById(params.id);
+    const problem = await Problem.findById(context.params.id);
     if (!problem) {
       return NextResponse.json(
         { error: 'Problem not found' },
@@ -20,14 +20,14 @@ export async function DELETE(
     // If deleting the active problem, make sure to set another one as active
     if (problem.active) {
       // Find another problem to set as active
-      const anotherProblem = await Problem.findOne({ _id: { $ne: params.id } });
+      const anotherProblem = await Problem.findOne({ _id: { $ne: context.params.id } });
       if (anotherProblem) {
         anotherProblem.active = true;
         await anotherProblem.save();
       }
     }
     
-    await Problem.findByIdAndDelete(params.id);
+    await Problem.findByIdAndDelete(context.params.id);
     
     return NextResponse.json({ 
       success: true,
