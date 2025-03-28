@@ -5,13 +5,14 @@ import Submission from '@/models/Submission';
 
 export async function DELETE(
   req: NextRequest,
-  context: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await dbConnect();
     
     // Find the user first to get the team name for logging
-    const user = await User.findById(context.params.id);
+    const { id } = await params;
+    const user = await User.findById(id);
     if (!user) {
       return NextResponse.json(
         { error: 'Team not found' },
@@ -26,7 +27,7 @@ export async function DELETE(
     await Submission.deleteMany({ userId: userId });
     
     // Delete the user
-    await User.findByIdAndDelete(context.params.id);
+    await User.findByIdAndDelete(id);
     
     console.log(`Team deleted: ${teamName}, ID: ${userId}`);
     
