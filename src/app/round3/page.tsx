@@ -6,7 +6,7 @@ import Header from '@/components/Header';
 export default function Round3() {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      <Header />
+      <Header isGameActive={false} />
       
       <main className="flex-1 container mx-auto px-4 py-12">
         <div className="bg-white p-8 rounded-lg shadow-lg max-w-3xl mx-auto">
