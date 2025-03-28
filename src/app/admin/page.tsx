@@ -61,7 +61,7 @@ export default function AdminPage() {
   });
 
   // Admin password (in a real app, this would be handled securely via authentication)
-  const ADMIN_PASSWORD = 'admin123';
+  const ADMIN_PASSWORD = 'vishal@#7798';
 
   const handleAuth = (e: React.FormEvent) => {
     e.preventDefault();
