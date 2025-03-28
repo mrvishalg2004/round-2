@@ -4,13 +4,13 @@ import User from '@/models/User';
 
 export async function POST(
   req: NextRequest,
-  context: { params: { id: string } }
+  { params }: { params: { id: string } }
 ) {
   try {
     await dbConnect();
     
     // Find the user by ID
-    const user = await User.findById(context.params.id);
+    const user = await User.findById(params.id);
     if (!user) {
       return NextResponse.json(
         { error: 'Team not found' },
