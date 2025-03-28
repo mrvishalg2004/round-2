@@ -9,13 +9,13 @@ interface RequestContext {
   };
 }
 
-export async function PUT(request: NextRequest, { params }: RequestContext): Promise<NextResponse> {
+export async function PUT(request: NextRequest, context: RequestContext): Promise<NextResponse> {
   try {
     await dbConnect();
     
     // Set the problem to inactive
     const problem = await Problem.findByIdAndUpdate(
-      params.id,
+      context.params.id,
       { active: false },
       { new: true }
     );
