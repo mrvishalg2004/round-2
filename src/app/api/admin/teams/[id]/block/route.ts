@@ -2,23 +2,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/utils/db';
 import User from '@/models/User';
 
-// Define proper types according to Next.js docs
-interface RouteParams {
-  params: {
-    id: string;
-  };
-}
-
-// Use proper type signature matching Next.js API Route definition
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
 ) {
   try {
     await dbConnect();
     
     // Find the user by ID
-    const user = await User.findById(params.id);
+    const user = await User.findById(context.params.id);
     if (!user) {
       return NextResponse.json(
         { error: 'Team not found' },

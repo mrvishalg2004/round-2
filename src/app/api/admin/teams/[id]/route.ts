@@ -3,23 +3,15 @@ import dbConnect from '@/utils/db';
 import User from '@/models/User';
 import Submission from '@/models/Submission';
 
-// Define proper types according to Next.js docs
-interface RouteParams {
-  params: {
-    id: string;
-  };
-}
-
-// Use proper type signature matching Next.js API Route definition
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
 ) {
   try {
     await dbConnect();
     
     // Find the user first to get the team name for logging
-    const user = await User.findById(params.id);
+    const user = await User.findById(context.params.id);
     if (!user) {
       return NextResponse.json(
         { error: 'Team not found' },
@@ -34,7 +26,7 @@ export async function DELETE(
     await Submission.deleteMany({ userId: userId });
     
     // Delete the user
-    await User.findByIdAndDelete(params.id);
+    await User.findByIdAndDelete(context.params.id);
     
     console.log(`Team deleted: ${teamName}, ID: ${userId}`);
     
