@@ -1,0 +1,37 @@
+{
+  "name": "code-rush",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "node server.js",
+    "build": "next build",
+    "start": "NODE_ENV=production node server.js",
+    "lint": "next lint",
+    "seed": "node seed-db.js",
+    "direct-seed": "node src/utils/directSeed.js",
+    "seed-riddles": "node src/utils/riddles-seed.js"
+  },
+  "dependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "next": "15.2.4",
+    "mongoose": "^7.6.8",
+    "socket.io": "^4.7.5",
+    "socket.io-client": "^4.7.5",
+    "mongodb": "^5.9.2",
+    "axios": "^1.6.7",
+    "ts-node": "^10.9.2",
+    "dotenv": "^16.4.5"
+  },
+  "devDependencies": {
+    "typescript": "^5",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@tailwindcss/postcss": "^4",
+    "tailwindcss": "^4",
+    "eslint": "^9",
+    "eslint-config-next": "15.2.4",
+    "@eslint/eslintrc": "^3"
+  }
+}
