@@ -2,9 +2,17 @@ import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/utils/db';
 import Problem from '@/models/Problem';
 
+// Define proper types according to Next.js docs
+interface RouteParams {
+  params: {
+    id: string;
+  };
+}
+
+// Use proper type signature matching Next.js API Route definition
 export async function PUT(
   req: NextRequest,
-  context: { params: { id: string } }
+  { params }: RouteParams
 ) {
   try {
     await dbConnect();
@@ -14,7 +22,7 @@ export async function PUT(
     
     // Set the specified problem to active
     const problem = await Problem.findByIdAndUpdate(
-      context.params.id,
+      params.id,
       { active: true },
       { new: true }
     );
